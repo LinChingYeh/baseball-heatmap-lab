@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Zone 決戰打擊區</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .k-zone-container {
+            display: grid;
+            grid-template-columns: 80px 90px 90px 90px 80px;
+            grid-template-rows: 80px 90px 90px 90px 80px;
+            gap: 4px;
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        .zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+            line-height: 1.2;
+            position: relative;
+        }
+
+        .strike {
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            font-size: 1.3rem;
+        }
+
+        .s1 {
+            grid-area: 2 / 2 / 3 / 3;
+        }
+
+        .s2 {
+            grid-area: 2 / 3 / 3 / 4;
+        }
+
+        .s3 {
+            grid-area: 2 / 4 / 3 / 5;
+        }
+
+        .s4 {
+            grid-area: 3 / 2 / 4 / 3;
+        }
+
+        .s5 {
+            grid-area: 3 / 3 / 4 / 4;
+        }
+
+        .s6 {
+            grid-area: 3 / 4 / 4 / 5;
+        }
+
+        .s7 {
+            grid-area: 4 / 2 / 5 / 3;
+        }
+
+        .s8 {
+            grid-area: 4 / 3 / 5 / 4;
+        }
+
+        .s9 {
+            grid-area: 4 / 4 / 5 / 5;
+        }
+
+        .z-high {
+            grid-area: 1 / 2 / 2 / 5;
+        }
+
+        .z-low {
+            grid-area: 5 / 2 / 6 / 5;
+        }
+
+        .z-left {
+            grid-area: 2 / 1 / 5 / 2;
+        }
+
+        .z-right {
+            grid-area: 2 / 5 / 5 / 6;
+        }
+
+        .z-tl {
+            grid-area: 1 / 1 / 2 / 2;
+            font-size: 0.9rem;
+        }
+
+        .z-tr {
+            grid-area: 1 / 5 / 2 / 6;
+            font-size: 0.9rem;
+        }
+
+        .z-bl {
+            grid-area: 5 / 1 / 6 / 2;
+            font-size: 0.9rem;
+        }
+
+        .z-br {
+            grid-area: 5 / 5 / 6 / 6;
+            font-size: 0.9rem;
+        }
+
+        .prob-text {
+            font-size: 0.9rem;
+            color: #fbbf24;
+            margin-top: 2px;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* 棒球飛行動畫設定 */
+        #heatmap-wrapper {
+            position: relative;
+        }
+
+        #baseball {
+            position: absolute;
+            font-size: 2.5rem;
+            z-index: 50;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(3);
+            opacity: 0;
+            pointer-events: none;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen lg:h-screen font-sans flex flex-col lg:overflow-hidden">
+
+    <nav class="relative bg-slate-800 p-4 shadow-lg flex flex-wrap justify-between items-center gap-3 z-20">
+        <h1 class="text-2xl font-bold text-blue-400">⚾ K-Zone 決戰打擊區</h1>
+        <div class="flex items-center gap-3 ml-auto">
+            <details id="model-info-details" class="relative">
+                <summary class="cursor-pointer select-none list-none rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm font-semibold text-slate-100">
+                    ⓘ 資料與模型說明 ▾
+                </summary>
+                <div class="absolute right-0 top-full mt-2 w-[min(42rem,calc(100vw-2rem))] max-h-[75vh] overflow-y-auto rounded-xl border border-slate-600 bg-slate-900 p-4 shadow-2xl text-xs text-slate-300 leading-relaxed">
+                    <div class="space-y-4">
+                        <section>
+                            <h4 class="font-semibold text-slate-100 mb-1">球種資料</h4>
+                            <p>資料來源為 Baseball Savant 球隊／球種彙總資料，依各隊投球數加權。一般球種使用 2025 年資料；慢速曲球（CS）、蝴蝶球（KN）、螺旋球（SC）使用 2022–2025 年資料以增加樣本。球速由 mph 換算為 km/h，位移由 ft 換算為 cm（1 ft = 30.48 cm）。</p>
+                            <p class="mt-1">此資料屬球隊彙總加權估算，並非使用完整逐球資料重新計算的官方全聯盟平均；樣本量或球隊覆蓋較少的球種需審慎解讀。出手位置為球隊加權代理值；左右位置先取絕對值平均，再依投手慣用手鏡像。HB 採捕手視角，正值向畫面右側。</p>
+                            <a class="inline-block mt-1 text-blue-300 underline" href="https://baseballsavant.mlb.com/leaderboard/pitch-movement" target="_blank" rel="noopener noreferrer">查看 Statcast 球路位移資料</a>
+                        </section>
+                        <section>
+                            <h4 class="font-semibold text-slate-100 mb-1">球路與熱區</h4>
+                            <p>模型依瞄準區、球種位移、出手位置與延伸距離估算進壘位置及飛行時間；溫濕度僅用於簡化空氣密度修正，並假設氣壓固定。模型未完整模擬風、旋轉軸、縫線效應或真實三維球路。</p>
+                            <p class="mt-1">水平位移倍率、垂直位移倍率與分布寬度為可調整的示意參數，尚未使用真實逐球落點進行校準。熱區百分比代表模型分布權重，不代表實測命中率。</p>
+                        </section>
+                        <section>
+                            <h4 class="font-semibold text-slate-100 mb-1">賽況影響</h4>
+                            <p>好壞球數、出局數與壘況依簡化規則微調策略目標與示意分布，不會改變同一球的物理運動；此功能不代表個別投手的實測配球策略。</p>
+                        </section>
+                    </div>
+                </div>
+            </details>
+            <button id="fullscreen-btn" type="button"
+                    class="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-lg shadow transition"
+                    aria-label="切換全螢幕">
+                ⛶ 進入全螢幕
+            </button>
+        </div>
+    </nav>
+
+    <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-0 lg:overflow-hidden">
+
+        <!-- 左側：戰術設定區 -->
+        <section class="col-span-1 lg:col-span-4 bg-slate-800 p-6 rounded-xl shadow-2xl border border-slate-700 flex flex-col h-full min-h-0">
+            <h2 class="text-xl font-bold mb-4 text-slate-200 border-b border-slate-600 pb-2">
+                🎛️ 戰術設定區
+            </h2>
+
+            <div class="overflow-y-auto scrollbar-hide flex-1 min-h-0 space-y-6 pr-2">
+
+                <!-- A. 投手與球種 -->
+                <div class="space-y-4">
+                    <h3 class="text-sm text-blue-300 font-bold uppercase tracking-wider">
+                        投手與球種設定
+                    </h3>
+
+                    <div>
+                        <label for="pitcher-hand" class="text-sm font-medium text-slate-300 block mb-1">
+                            投手慣用手
+                        </label>
+                        <select id="pitcher-hand"
+                                class="w-full bg-slate-700 text-white text-sm p-2 rounded outline-none border border-slate-600">
+                            <option value="R">右投（RHP）</option>
+                            <option value="L">左投（LHP）</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-slate-700 p-3 rounded-lg border border-slate-600">
+                        <label for="pitch-type" class="text-sm font-bold text-yellow-400 block mb-2">
+                            ⭐ 球種參考模板（Statcast 球隊加權值）
+                        </label>
+                        <select id="pitch-type" class="w-full rounded-lg bg-slate-700 border border-slate-600 text-white p-2">
+                            <option value="ff">四縫線速球 (Four-Seam Fastball)</option>
+                            <option value="si">伸卡球 (Sinker)</option>
+                            <option value="fc">卡特球 (Cutter)</option>
+                            <option value="fs">叉指快速球 (Splitter)</option>
+                            <option value="fo">指叉球 (Forkball)</option>
+                            <option value="sl">滑球 (Slider)</option>
+                            <option value="st">橫掃球 (Sweeper)</option>
+                            <option value="cu">曲球 (Curveball)</option>
+                            <option value="kc">彈指曲球 (Knuckle Curve)</option>
+                            <option value="sc">慢速曲球 (Slow Curve)</option>
+                            <option value="sv">滑曲球 (Slurve)</option>
+                            <option value="ch">變速球 (Changeup)</option>
+                            <option value="kn">蝴蝶球 (Knuckleball)</option>
+                            <option value="siw">螺旋球 (Screwball)</option>
+                            <option value="custom">自訂數值 (Custom)</option>
+                        </select>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed"><span id="pitch-data-note" class="block text-slate-300"></span><span class="block mt-1">資料算法與模型限制請見右側「資料與模型說明」。</span></p>
+                    </div>
+                </div>
+
+                <!-- B. 投球物理特徵 -->
+                <div class="space-y-4 pt-4 border-t border-slate-700">
+                    <h3 class="text-sm text-blue-300 font-bold uppercase tracking-wider">
+                        投球物理特徵
+                    </h3>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label for="velocity" class="text-sm font-medium text-slate-300">球速</label>
+                            <span id="velocity-val" class="text-sm font-bold text-blue-400">150 km/h</span>
+                        </div>
+                        <input type="range" id="velocity" min="80" max="170" value="150" step="1"
+                               class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label for="spin" class="text-sm font-medium text-slate-300">轉速</label>
+                            <span id="spin-val" class="text-sm font-bold text-blue-400">2200 rpm</span>
+                        </div>
+                        <input type="range" id="spin" min="0" max="3500" value="2200" step="50"
+                               class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label for="vbreak" class="text-sm font-medium text-slate-300">
+                                誘發垂直位移（IVB）
+                            </label>
+                            <span id="vbreak-val" class="text-sm font-bold text-blue-400">40 cm</span>
+                        </div>
+                        <input type="range" id="vbreak" min="-60" max="60" value="40" step="0.5"
+                               class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                        <p class="text-xs text-slate-400 mt-1">
+                            正值表示相對於重力參考軌跡下降較少，不代表球實際向上飛。
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label for="hbreak" class="text-sm font-medium text-slate-300">
+                                水平位移（HB）
+                            </label>
+                            <span id="hbreak-val" class="text-sm font-bold text-blue-400">-15 cm</span>
+                        </div>
+                        <input type="range" id="hbreak" min="-60" max="60" value="-15" step="0.5"
+                               class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                        <p class="text-xs text-slate-400 mt-1">
+                            正負方向依本模擬器的座標約定；球種模板會依投手慣用手調整預設值。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- C. 出手位置 -->
+                <div class="space-y-4 pt-4 border-t border-slate-700">
+                    <h3 class="text-sm text-blue-300 font-bold uppercase tracking-wider">
+                        出手位置與延伸
+                    </h3>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label for="release-height" class="text-sm font-medium text-slate-300">出手高度</label>
+                            <span id="release-height-val" class="text-sm font-bold text-blue-400">180 cm</span>
+                        </div>
+                        <input type="range" id="release-height" min="120" max="220" value="180" step="1"
+                               class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label for="release-side" class="text-sm font-medium text-slate-300">出手左右位置</label>
+                            <span id="release-side-val" class="text-sm font-bold text-blue-400">+30 cm</span>
+                        </div>
+                        <input type="range" id="release-side" min="-100" max="100" value="30" step="1"
+                               class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                        <p class="text-xs text-slate-400 mt-1">
+                            相對於投球板中心；正值向捕手視角畫面右，球種模板會依投手慣用手鏡像。
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label for="extension" class="text-sm font-medium text-slate-300">出手延伸距離</label>
+                            <span id="extension-val" class="text-sm font-bold text-blue-400">180 cm</span>
+                        </div>
+                        <input type="range" id="extension" min="100" max="220" value="180" step="1"
+                               class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                    </div>
+                </div>
+
+                <!-- D. 環境參數 -->
+                <div class="space-y-4 pt-4 border-t border-slate-700">
+                    <h3 class="text-sm text-blue-300 font-bold uppercase tracking-wider">
+                        環境與賽況
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label for="temp" class="text-xs font-medium text-slate-300">氣溫</label>
+                                <span id="temp-val" class="text-xs font-bold text-blue-400">26 °C</span>
+                            </div>
+                            <input type="range" id="temp" min="5" max="40" value="26" step="1"
+                                   class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label for="humid" class="text-xs font-medium text-slate-300">相對濕度</label>
+                                <span id="humid-val" class="text-xs font-bold text-blue-400">75 %</span>
+                            </div>
+                            <input type="range" id="humid" min="20" max="100" value="75" step="1"
+                                   class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer filter-input">
+                        </div>
+                    </div>
+
+                    <!-- 打者與球數 -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label for="batter" class="text-xs font-medium text-slate-400 block mb-1">
+                                打者
+                            </label>
+                            <select id="batter"
+                                    class="w-full bg-slate-700 text-white text-sm p-1.5 rounded outline-none filter-input">
+                                <option value="0">右打</option>
+                                <option value="1">左打</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="strikes" class="text-xs font-medium text-slate-400 block mb-1">
+                                好球數
+                            </label>
+                            <select id="strikes"
+                                    class="w-full bg-slate-700 text-white text-sm p-1.5 rounded outline-none filter-input">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="balls" class="text-xs font-medium text-slate-400 block mb-1">
+                                壞球數
+                            </label>
+                            <select id="balls"
+                                    class="w-full bg-slate-700 text-white text-sm p-1.5 rounded outline-none filter-input">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 比賽情境：只調整策略目標，不改變同一球的物理參數 -->
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <label for="outs" class="text-xs font-medium text-slate-400 block mb-1">出局數</label>
+                            <select id="outs" class="w-full bg-slate-700 text-white text-sm p-1.5 rounded outline-none filter-input">
+                                <option value="0">0 出局</option>
+                                <option value="1">1 出局</option>
+                                <option value="2">2 出局</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="base-state" class="text-xs font-medium text-slate-400 block mb-1">壘上狀況</label>
+                            <select id="base-state" class="w-full bg-slate-700 text-white text-sm p-1.5 rounded outline-none filter-input">
+                                <option value="000">無人上壘</option>
+                                <option value="100">一壘有人</option>
+                                <option value="010">二壘有人</option>
+                                <option value="001">三壘有人</option>
+                                <option value="110">一、二壘有人</option>
+                                <option value="101">一、三壘有人</option>
+                                <option value="011">二、三壘有人</option>
+                                <option value="111">滿壘</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p class="text-xs leading-relaxed text-slate-500">賽況會微調示意落點分布。</p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- 右側：K-Zone 視覺化打擊區 -->
+        <section class="col-span-1 lg:col-span-8 bg-slate-800 p-6 rounded-xl shadow-2xl border border-slate-700 flex flex-col items-center relative h-full">
+            <div class="w-full flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-slate-200">捕手視角落點機率熱區</h2>
+                <span class="bg-red-900/50 text-red-300 text-xs px-3 py-1 rounded-full border border-red-700 animate-pulse">即時演算中</span>
+            </div>
+
+            <p id="trajectory-summary" class="w-full text-xs leading-relaxed text-slate-400 mb-3 text-center" role="status">
+                簡化估算｜瞄準區、進壘區與飛行時間會隨目前設定更新。詳細假設請見「資料與模型說明」。
+            </p>
+
+            <div class="w-full max-w-xl mb-3 flex flex-wrap items-center justify-center gap-2 text-sm">
+                <label for="aim-zone" class="text-slate-300">假設瞄準區</label>
+                <select id="aim-zone" class="bg-slate-700 text-white border border-slate-600 rounded px-3 py-1.5 outline-none">
+                    <option value="5" selected>好球帶5號位</option>
+                    <option value="1">好球帶1號位</option>
+                    <option value="2">好球帶2號位</option>
+                    <option value="3">好球帶3號位</option>
+                    <option value="4">好球帶4號位</option>
+                    <option value="6">好球帶6號位</option>
+                    <option value="7">好球帶7號位</option>
+                    <option value="8">好球帶8號位</option>
+                    <option value="9">好球帶9號位</option>
+                    <option value="high">高位</option>
+                    <option value="low">低位</option>
+                    <option value="left">畫面左側位</option>
+                    <option value="right">畫面右側位</option>
+                    <option value="tl">內角高位</option>
+                    <option value="tr">外角高位</option>
+                    <option value="bl">內角低位</option>
+                    <option value="br">外角低位</option>
+                </select>
+            </div>
+            <p class="w-full text-xs leading-relaxed text-slate-500 mb-3 text-center">
+                瞄準區是位移前的基準；正 HB 向畫面右側，正 IVB 使示意落點上移。
+            </p>
+
+            <!-- 第三版：可調整的示意模型參數；不是實測物理係數 -->
+            <div class="w-full max-w-xl rounded-lg border border-slate-700 bg-slate-900/60 p-3 mb-3">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <h3 class="text-sm font-bold text-blue-300">示意模型參數</h3>
+                    <button id="reset-model-btn" type="button" class="text-xs text-slate-300 hover:text-white underline">重設參數</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <div class="flex justify-between gap-2 text-xs mb-1">
+                            <label for="hb-scale" class="text-slate-300">水平位移倍率</label>
+                            <span id="hb-scale-val" class="text-blue-300 font-bold">1.00×</span>
+                        </div>
+                        <input id="hb-scale" class="model-input w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer" type="range" min="0.50" max="1.50" step="0.05" value="1.00">
+                    </div>
+                    <div>
+                        <div class="flex justify-between gap-2 text-xs mb-1">
+                            <label for="ivb-scale" class="text-slate-300">垂直位移倍率</label>
+                            <span id="ivb-scale-val" class="text-blue-300 font-bold">1.00×</span>
+                        </div>
+                        <input id="ivb-scale" class="model-input w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer" type="range" min="0.50" max="1.50" step="0.05" value="1.00">
+                    </div>
+                    <div>
+                        <div class="flex justify-between gap-2 text-xs mb-1">
+                            <label for="dispersion-sigma" class="text-slate-300">分布寬度</label>
+                            <span id="dispersion-sigma-val" class="text-blue-300 font-bold">0.85</span>
+                        </div>
+                        <input id="dispersion-sigma" class="model-input w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer" type="range" min="0.40" max="1.40" step="0.05" value="0.85">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 熱區與棒球動畫的共同容器 -->
+            <div class="flex-1 flex flex-col items-center justify-center w-full" id="heatmap-wrapper">
+                <div class="k-zone-container" id="heatmap">
+                    <div class="zone z-tl" id="zone-tl"></div><div class="zone z-tr" id="zone-tr"></div>
+                    <div class="zone z-bl" id="zone-bl"></div><div class="zone z-br" id="zone-br"></div>
+                    <div class="zone z-high" id="zone-high"></div><div class="zone z-low" id="zone-low"></div>
+                    <div class="zone z-left" id="zone-left"></div><div class="zone z-right" id="zone-right"></div>
+
+                    <div class="zone strike s1" id="zone-1"></div><div class="zone strike s2" id="zone-2"></div><div class="zone strike s3" id="zone-3"></div>
+                    <div class="zone strike s4" id="zone-4"></div><div class="zone strike s5" id="zone-5"></div><div class="zone strike s6" id="zone-6"></div>
+                    <div class="zone strike s7" id="zone-7"></div><div class="zone strike s8" id="zone-8"></div><div class="zone strike s9" id="zone-9"></div>
+                </div>
+
+                <div id="baseball">⚾</div>
+            </div>
+
+            <!-- 移除了 AI 文字分析，保留置中的投球按鈕，讓視覺更俐落 -->
+            <div class="w-full mt-8 flex justify-center">
+                <button id="simulate-btn" class="bg-red-600 hover:bg-red-500 text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-red-600/30 transition transform hover:scale-105 text-lg">
+                    開始投球模擬 ⚾
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ===== K-Zone 球種模板與參數顯示 =====
+        const units = {
+        velocity: ' km/h',
+        spin: ' rpm',
+        vbreak: ' cm',
+        hbreak: ' cm',
+        'release-height': ' cm',
+        'release-side': ' cm',
+        extension: ' cm',
+        temp: ' °C',
+        humid: ' %'
+        };
+
+        const pitchTypeSelect = document.getElementById('pitch-type');
+        const pitcherHandSelect = document.getElementById('pitcher-hand');
+
+        // 球種模板：球速／轉速／位移沿用原有設定；出手高度、左右位置、延伸依使用者提供的 Statcast 球隊彙總 CSV 按 pitches 加權。
+        // release_pos_z、release_pos_x、release_extension 原始單位為 ft，換算 cm（1 ft = 30.48 cm）。
+        // release_pos_x 的全隊彙總混合左右投，故出手左右位置採各隊平均值絕對值再加權，並依投手慣用手鏡像；屬預設代理值，不是投手個人真實值。
+        // 一般球種採 2025；CS、KN、SC 採 2022–2025。低樣本球種會在資料提示中標示。
+        const pitchTemplates = {
+        ff: { name: '四縫線速球', velocity: 152, spin: 2300, ivb: 40.0, hb: -19.5, releaseHeight: 177.5, releaseSide: 24.6, extension: 198.4, samplePitches: 226410, teamCount: 30, sourceStatus: 'team_pitch_weighted', pitchCode: 'FF', sourceYear: '2025' },
+        si: { name: '伸卡球', velocity: 151, spin: 2200, ivb: 19.0, hb: -38.5, releaseHeight: 171.8, releaseSide: 24.7, extension: 195.0, samplePitches: 110084, teamCount: 30, sourceStatus: 'team_pitch_weighted', pitchCode: 'SI', sourceYear: '2025' },
+        fc: { name: '卡特球', velocity: 144, spin: 2400, ivb: 21.0, hb: 5.5, releaseHeight: 177.3, releaseSide: 29.7, extension: 194.3, samplePitches: 53073, teamCount: 30, sourceStatus: 'team_pitch_weighted', pitchCode: 'FC', sourceYear: '2025' },
+        fs: { name: '叉指快速球', velocity: 139, spin: 1350, ivb: 8.5, hb: -28.0, releaseHeight: 176.0, releaseSide: 49.6, extension: 199.5, samplePitches: 23212, teamCount: 29, sourceStatus: 'team_pitch_weighted', pitchCode: 'FS', sourceYear: '2025' },
+        fo: { name: '指叉球', velocity: 134, spin: 1000, ivb: -1.5, hb: -19.0, releaseHeight: 183.1, releaseSide: 65.6, extension: 199.6, samplePitches: 750, teamCount: 2, sourceStatus: 'low_sample', pitchCode: 'FO', sourceYear: '2025' },
+        sl: { name: '滑球', velocity: 139, spin: 2450, ivb: 5.0, hb: 10.5, releaseHeight: 177.6, releaseSide: 26.5, extension: 195.8, samplePitches: 102505, teamCount: 30, sourceStatus: 'team_pitch_weighted', pitchCode: 'SL', sourceYear: '2025' },
+        st: { name: '橫掃球', velocity: 133, spin: 2600, ivb: 2.5, hb: 34.5, releaseHeight: 167.8, releaseSide: 32.6, extension: 192.8, samplePitches: 54467, teamCount: 30, sourceStatus: 'team_pitch_weighted', pitchCode: 'ST', sourceYear: '2025' },
+        cu: { name: '曲球', velocity: 128, spin: 2600, ivb: -26.0, hb: 23.5, releaseHeight: 181.5, releaseSide: 25.0, extension: 193.6, samplePitches: 46770, teamCount: 30, sourceStatus: 'team_pitch_weighted', pitchCode: 'CU', sourceYear: '2025' },
+        kc: { name: '彈指曲球', velocity: 133, spin: 2500, ivb: -25.0, hb: 17.5, releaseHeight: 181.2, releaseSide: 45.3, extension: 195.3, samplePitches: 13337, teamCount: 25, sourceStatus: 'team_pitch_weighted', pitchCode: 'KC', sourceYear: '2025' },
+        sc: { name: '慢速曲球', velocity: 105, spin: 2100, ivb: -1.0, hb: 25.5, releaseHeight: 179.7, releaseSide: 73.1, extension: 168.3, samplePitches: 582, teamCount: 19, sourceStatus: 'multi_year_weighted', pitchCode: 'CS', sourceYear: '2022–2025' },
+        sv: { name: '滑曲球', velocity: 132, spin: 2550, ivb: -13.0, hb: 31.0, releaseHeight: 171.5, releaseSide: 59.3, extension: 187.5, samplePitches: 3540, teamCount: 19, sourceStatus: 'team_pitch_weighted', pitchCode: 'SV', sourceYear: '2025' },
+        ch: { name: '變速球', velocity: 138, spin: 1800, ivb: 11.5, hb: -36.5, releaseHeight: 174.3, releaseSide: 24.4, extension: 196.2, samplePitches: 73260, teamCount: 30, sourceStatus: 'team_pitch_weighted', pitchCode: 'CH', sourceYear: '2025' },
+        kn: { name: '蝴蝶球', velocity: 124, spin: 350, ivb: -5.5, hb: -12.5, releaseHeight: 170.9, releaseSide: 32.7, extension: 194.0, samplePitches: 1385, teamCount: 13, sourceStatus: 'multi_year_weighted', pitchCode: 'KN', sourceYear: '2022–2025' },
+        siw: { name: '螺旋球', velocity: 130, spin: 2050, ivb: -8.5, hb: -21.0, releaseHeight: 185.4, releaseSide: 34.6, extension: 186.2, samplePitches: 234, teamCount: 6, sourceStatus: 'multi_year_weighted', pitchCode: 'SC', sourceYear: '2022–2025' }
+        };
+
+        function updateSliderDisplay(slider) {
+        const display = document.getElementById(slider.id + '-val');
+        if (display) {
+        let valueText = slider.value;
+        if (slider.id === 'release-side' && Number(slider.value) > 0) {
+        valueText = '+' + slider.value;
+        }
+        display.textContent = valueText + (units[slider.id] || '');
+        }
+        }
+
+        function updatePitchDataNote(pitchType) {
+        const note = document.getElementById('pitch-data-note');
+        if (!note) return;
+        if (pitchType === 'custom') {
+        note.textContent = '自訂數值：不套用球種模板。';
+        return;
+        }
+        const t = pitchTemplates[pitchType];
+        if (!t) return;
+        const countText = Number(t.samplePitches || 0).toLocaleString('en-US');
+        const period = t.sourceYear || '來源年度未標示';
+        const quality = (t.samplePitches < 2000 || t.teamCount < 5 || t.sourceStatus === 'multi_year_weighted')
+        ? '樣本較少，解讀請保留' : '球隊投球數加權';
+        note.textContent = `${t.pitchCode}｜${period}｜${countText} 球／${t.teamCount} 隊｜${quality}`;
+        }
+
+        // 球種模板轉速作為旋轉量級參考；手動改為 custom 後仍保留最後選取模板的參考值。
+        // 此參考值只用於示意比例，不代表已知旋轉軸或 spin efficiency。
+        let modelReferenceSpin = 2200;
+
+        function applyPitchTemplate(pitchType) {
+        const template = pitchTemplates[pitchType];
+        if (!template) return; // custom 不載入模板
+
+        const velocity = document.getElementById('velocity');
+        const spin = document.getElementById('spin');
+        const vbreak = document.getElementById('vbreak');
+        const hbreak = document.getElementById('hbreak');
+        const isLeftHanded = pitcherHandSelect.value === 'L';
+
+        velocity.value = template.velocity;
+        spin.value = template.spin;
+        modelReferenceSpin = Math.max(1, Number(template.spin) || 2200);
+        vbreak.value = template.ivb;
+        hbreak.value = isLeftHanded ? -template.hb : template.hb;
+        document.getElementById('release-height').value = template.releaseHeight;
+        document.getElementById('release-side').value = isLeftHanded ? -template.releaseSide : template.releaseSide;
+        document.getElementById('extension').value = template.extension;
+
+        [velocity, spin, vbreak, hbreak, document.getElementById('release-height'), document.getElementById('release-side'), document.getElementById('extension')].forEach(updateSliderDisplay);
+        updatePitchDataNote(pitchType);
+        updateHeatmap();
+        }
+
+        // 只有使用者實際操作滑桿時才切換 custom。
+        // 程式載入模板時直接設定 value，不會觸發此事件。
+        const pitchParameterIds = new Set(['velocity', 'spin', 'vbreak', 'hbreak', 'release-height', 'release-side', 'extension']);
+        document.querySelectorAll('input[type="range"]:not(.model-input)').forEach(slider => {
+        slider.addEventListener('input', function () {
+        updateSliderDisplay(this);
+        // 只有手動改動球種／出手物理參數才切換 custom；環境滑桿不應清除球種模板標記。
+        if (pitchParameterIds.has(this.id) && pitchTypeSelect.value !== 'custom') {
+        pitchTypeSelect.value = 'custom';
+        updatePitchDataNote('custom');
+        }
+        updateHeatmap();
+        });
+        });
+
+        pitchTypeSelect.addEventListener('change', function () {
+        if (this.value !== 'custom') {
+        applyPitchTemplate(this.value);
+        } else {
+        updatePitchDataNote('custom');
+        }
+        });
+
+        // 切換投手慣用手時：模板模式重載模板並反轉 HB；
+        // custom 模式則保留使用者手動輸入的所有數值。
+        pitcherHandSelect.addEventListener('change', function () {
+        if (pitchTypeSelect.value !== 'custom') {
+        applyPitchTemplate(pitchTypeSelect.value);
+        } else {
+        // 自訂模式不覆寫使用者參數，但慣用手仍會改變出手幾何參考，必須立即重算熱區。
+        updateHeatmap();
+        }
+        });
+
+        const zoneIds = [
+        '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'high', 'low', 'left', 'right', 'tl', 'tr', 'bl', 'br'
+        ];
+        let highestProbZoneId = '5';
+        // 最近一次模型計算的估算進壘區；動畫終點使用此值，而非熱區權重最高區。
+        let latestEstimatedZoneId = '5';
+
+        // ===== 第二版簡化落點模型（示意，不是完整物理預測） =====
+        // 所選瞄準區作為「未受位移影響的基準點」。HB / IVB 以 cm 表示，
+        // 分別用好球帶寬約 43 cm / 3 格、垂直高度約 60 cm / 3 格換算成格數。
+        // 這些尺寸是視覺化近似；固定 sigma 與球數修正也是示意參數，並非實測誤差模型。
+        // 本版整合出手幾何與環境密度的簡化代理修正，但仍未建模初始出球方向、旋轉軸／效率、
+        // 縫線效應、重力完整積分、風、個別打者好球帶或實測投球誤差。熱區百分比不是實測命中率。
+        const zoneCoordinates = {
+        '1': [-1, -1], '2': [0, -1], '3': [1, -1],
+        '4': [-1, 0],  '5': [0, 0],  '6': [1, 0],
+        '7': [-1, 1],  '8': [0, 1],  '9': [1, 1],
+        high: [0, -2], low: [0, 2], left: [-2, 0], right: [2, 0],
+        tl: [-2, -2], tr: [2, -2], bl: [-2, 2], br: [2, 2]
+        };
+
+        function getZoneName(id, isLeftBatter) {
+        const leftText = isLeftBatter ? '外角' : '內角';
+        const rightText = isLeftBatter ? '內角' : '外角';
+        const names = {
+        high: '高位', low: '低位', left: leftText, right: rightText,
+        tl: leftText + '高位', tr: rightText + '高位',
+        bl: leftText + '低位', br: rightText + '低位'
+        };
+        return names[id] || ('好球帶' + id + '號位');
+        }
+
+        function updateAimZoneLabels() {
+        const isLeftBatter = document.getElementById('batter').value === '1';
+        const labels = {
+        '1': '好球帶1號位', '2': '好球帶2號位', '3': '好球帶3號位',
+        '4': '好球帶4號位', '5': '好球帶5號位', '6': '好球帶6號位',
+        '7': '好球帶7號位', '8': '好球帶8號位', '9': '好球帶9號位',
+        high: '高位', low: '低位'
+        };
+        const select = document.getElementById('aim-zone');
+        for (const option of select.options) {
+        option.textContent = labels[option.value] || getZoneName(option.value, isLeftBatter);
+        }
+        }
+
+        function getNearestZoneId(x, y) {
+        let nearestId = '5';
+        let nearestDistance = Infinity;
+        for (const id of zoneIds) {
+        const [zx, zy] = zoneCoordinates[id];
+        const distance = ((x - zx) ** 2) + ((y - zy) ** 2);
+        if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestId = id;
+        }
+        }
+        return nearestId;
+        }
+
+        function updateHeatmap() {
+        const v = Number(document.getElementById('velocity').value);
+        const spin = Number(document.getElementById('spin').value);
+        const vb = Number(document.getElementById('vbreak').value);
+        const hb = Number(document.getElementById('hbreak').value);
+        const releaseHeight = Number(document.getElementById('release-height').value);
+        const releaseSide = Number(document.getElementById('release-side').value);
+        const extension = Number(document.getElementById('extension').value);
+        const temp = Number(document.getElementById('temp').value);
+        const humid = Number(document.getElementById('humid').value);
+        const strikes = Number(document.getElementById('strikes').value);
+        const balls = Number(document.getElementById('balls').value);
+        const outs = Number(document.getElementById('outs')?.value || 0);
+        const baseState = document.getElementById('base-state')?.value || '000';
+        const runnerOnFirst = baseState[0] === '1';
+        const runnerOnSecond = baseState[1] === '1';
+        const runnerOnThird = baseState[2] === '1';
+        const runnerInScoringPosition = runnerOnSecond || runnerOnThird;
+        const isLeftBatter = document.getElementById('batter').value === '1';
+        const isLeftHanded = pitcherHandSelect.value === 'L';
+        const aimZoneId = document.getElementById('aim-zone')?.value || '5';
+
+        const leftText = isLeftBatter ? '外角' : '內角';
+        const rightText = isLeftBatter ? '內角' : '外角';
+
+        // 飛行時間：有效距離近似為橡皮板至本壘板 18.44 m 減去出手延伸；球速以平均值估算。
+        const estimatedDistanceM = Math.max(1, 18.44 - extension / 100);
+        const flightTime = estimatedDistanceM / Math.max(1, v / 3.6);
+
+        // 溫度／濕度透過簡化濕空氣密度公式修正 HB／IVB 位移代理；不代表完整空氣動力學模擬。
+        function airDensityKgM3(temperatureC, relativeHumidity) {
+        const temperatureK = temperatureC + 273.15;
+        const saturationVaporPressure = 610.94 * Math.exp((17.625 * temperatureC) / (temperatureC + 243.04));
+        const vaporPressure = Math.max(0, Math.min(1, relativeHumidity / 100)) * saturationVaporPressure;
+        const pressurePa = 101325;
+        return ((pressurePa - vaporPressure) / (287.05 * temperatureK)) + (vaporPressure / (461.495 * temperatureK));
+        }
+        const referenceDensity = airDensityKgM3(26, 75);
+        const airDensityRatio = Math.max(0.90, Math.min(1.10, airDensityKgM3(temp, humid) / referenceDensity));
+        // 球速與延伸共同決定簡化飛行時間；飛行時間越長，累積位移代理越大。
+        // 以 140 km/h、180 cm 延伸作參考，避免只改球速／延伸卻完全不影響熱區。
+        const referenceFlightTime = (18.44 - 1.80) / (140 / 3.6);
+        const movementFlightScale = Math.max(0.45, Math.min(1.75, flightTime / referenceFlightTime));
+
+        // 轉速只作「旋轉量級」代理：以目前球種模板轉速為 1.0 倍，採平方根比例並限制範圍。
+        // 真實位移還取決於旋轉軸、spin efficiency、縫線效應等；本式不是實測物理反推。
+        const spinScale = Math.max(0, Math.min(1.60,
+        Math.sqrt(Math.max(0, spin) / Math.max(1, modelReferenceSpin))));
+        const movementScale = airDensityRatio * movementFlightScale * spinScale;
+        const environmentHB = hb * movementScale;
+        const environmentIVB = vb * movementScale;
+
+        // 相對重力下墜代理：IVB 是相對「只受重力」軌跡的誘發垂直位移，不能把慢球較長飛行時間造成的重力下墜忽略。
+        // 以參考飛行時間為零點，只計算速度／延伸改變帶來的重力差；畫面座標 Y 正值代表較低。
+        // 這仍是簡化的固定初始方向假設，不是逐時刻的完整軌跡積分。
+        const gravity = 9.80665;
+        const gravityDeltaCm = 0.5 * gravity * (flightTime * flightTime - referenceFlightTime * referenceFlightTime) * 100;
+        const gravityDeltaGrid = gravityDeltaCm / 20;
+
+        // 出手幾何代理：以 180 cm 高、左右位置依慣用手 ±30 cm 作參考，將未被瞄準方向補償的 20% 差異映射到落點。
+        // 20% 是明確的簡化假設，不是由逐球軌跡校準；真實出手點影響需結合初速度方向／旋轉軸才能精算。
+        const referenceReleaseSide = isLeftHanded ? -30 : 30;
+        const releaseXGrid = ((releaseSide - referenceReleaseSide) * 0.20) / (43 / 3);
+        const releaseYGrid = -((releaseHeight - 180) * 0.20) / 20;
+
+        // 將瞄準區、環境修正後 HB／IVB、出手幾何代理合併為示意進壘座標。
+        // 43 cm / 3 格與 20 cm / 格為畫面映射假設，不代表精確個人好球帶尺寸。
+        const [aimX, aimY] = zoneCoordinates[aimZoneId] || zoneCoordinates['5'];
+        const hbScale = Number(document.getElementById('hb-scale').value);
+        const ivbScale = Number(document.getElementById('ivb-scale').value);
+
+        // 比賽情境策略代理：不同球數會改變目標選擇傾向，但不改變物理位移。
+        // 正 X 向畫面右側；Y 正值向下。各偏移量以「格」表示，刻意保持小幅，並非實測策略係數。
+        let strategyX = 0;
+        let strategyY = 0;
+        const outsideDirection = isLeftBatter ? -1 : 1; // 捕手視角的示意外角方向
+        if (strikes === 0 && balls === 0) {
+        // 初球：大致維持預瞄點，只有很小的中間值回歸。
+        strategyX += -aimX * 0.03;
+        strategyY += -aimY * 0.03;
+        } else if (strikes > balls) {
+        // 投手領先球數：略偏向邊角，兩好球時更明顯。
+        strategyX += outsideDirection * (strikes === 2 ? 0.22 : 0.10);
+        strategyY += strikes === 2 ? 0.12 : 0.04;
+        } else if (balls > strikes) {
+        // 打者領先球數：略提高進好球帶的意圖，尤其三壞球時。
+        strategyX += -aimX * (balls === 3 ? 0.22 : 0.12);
+        strategyY += -aimY * (balls === 3 ? 0.18 : 0.10);
+        } else {
+        // 球數相同（如 1-1、2-2）：只做輕微回歸，避免把賽況誇大成確定性。
+        strategyX += -aimX * 0.08;
+        strategyY += -aimY * 0.06;
+        }
+        // 壘上與出局數的弱策略先驗：有人在得點圈且 0 出局時略偏低；兩出局則稍微回到預瞄點。
+        if (runnerInScoringPosition && outs === 0) strategyY += 0.10;
+        if (runnerOnFirst && !runnerInScoringPosition && outs < 2) strategyY += 0.05;
+        if (runnerInScoringPosition && outs === 1) strategyY += 0.04;
+        if (outs === 2) {
+        strategyX *= 0.65;
+        strategyY *= 0.65;
+        }
+        // 滿壘或三壘有人時，避免示意模型過度追求邊角，稍微朝預瞄區收斂。
+        if (runnerOnThird) {
+        strategyX *= 0.85;
+        strategyY *= 0.85;
+        }
+
+        const targetX = aimX + strategyX;
+        const targetY = aimY + strategyY;
+        const estimatedX = targetX + (environmentHB / (43 / 3)) * hbScale + releaseXGrid;
+        const estimatedY = targetY - (environmentIVB / 20) * ivbScale + gravityDeltaGrid + releaseYGrid;
+        const estimatedZoneId = getNearestZoneId(estimatedX, estimatedY);
+        latestEstimatedZoneId = estimatedZoneId;
+
+        // 以示意落點為中心建立固定寬度的平滑分布；sigma 不是由投球資料校準而來。
+        const sigma = Number(document.getElementById('dispersion-sigma').value);
+        const weights = {};
+        let totalWeight = 0;
+
+        for (const id of zoneIds) {
+        const [zx, zy] = zoneCoordinates[id];
+        const dx = estimatedX - zx;
+        const dy = estimatedY - zy;
+        let weight = Math.exp(-((dx * dx) + (dy * dy)) / (2 * sigma * sigma));
+
+        // 防止極遠位置的浮點數下溢造成全零。
+        weights[id] = Math.max(weight, 0.000001);
+        totalWeight += weights[id];
+        }
+
+        // 比賽情境再輕微調整示意分布；不宣稱代表真實聯盟平均或特定投手策略。
+        const basePeakWeight = Math.max(...Object.values(weights));
+        const contextStrength = Math.min(0.10, 0.025 + Math.abs(balls - strikes) * 0.018 + (runnerInScoringPosition ? 0.015 : 0));
+        if (strikes === 2) {
+        ['low', 'bl', 'br', '7', '8', '9'].forEach(id => { weights[id] += basePeakWeight * contextStrength; });
+        } else if (balls >= 2) {
+        ['1', '2', '3', '4', '5', '6', '7', '8', '9'].forEach(id => { weights[id] += basePeakWeight * contextStrength * (balls === 3 ? 0.75 : 0.45); });
+        } else if (strikes === 1) {
+        ['4', '5', '6', '7', '8', '9'].forEach(id => { weights[id] += basePeakWeight * contextStrength * 0.25; });
+        }
+        // 壘上與出局數對策略分布的影響維持小幅；有得點圈跑者時略增加低區權重，兩出局時降低此偏好。
+        const runnerContextWeight = basePeakWeight * (runnerInScoringPosition ? (outs === 0 ? 0.035 : outs === 1 ? 0.025 : 0.01) : runnerOnFirst ? 0.015 : 0);
+        if (runnerContextWeight > 0) ['low', 'bl', 'br', '7', '8', '9'].forEach(id => { weights[id] += runnerContextWeight; });
+        totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+
+        let maxWeight = -Infinity;
+        highestProbZoneId = '5';
+
+        zoneIds.forEach(id => {
+        const prob = (weights[id] / totalWeight) * 100;
+        if (weights[id] > maxWeight) {
+        maxWeight = weights[id];
+        highestProbZoneId = id;
+        }
+
+        let name = id;
+        if (id === 'high') name = '高位';
+        if (id === 'low') name = '低位';
+        if (id === 'left') name = leftText;
+        if (id === 'right') name = rightText;
+        if (id === 'tl') name = leftText + '<br>高';
+        if (id === 'tr') name = rightText + '<br>高';
+        if (id === 'bl') name = leftText + '<br>低';
+        if (id === 'br') name = rightText + '<br>低';
+
+        const zoneDiv = document.getElementById('zone-' + id);
+        zoneDiv.innerHTML = `<span>${name}</span><span class="prob-text">${prob.toFixed(1)}%</span>`;
+
+        const alpha = Math.min(0.9, prob / 30);
+        if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(id)) {
+        zoneDiv.style.backgroundColor = `rgba(239, 68, 68, ${alpha})`;
+        } else {
+        zoneDiv.style.backgroundColor = `rgba(239, 68, 68, ${alpha * 0.7})`;
+        }
+        });
+
+        const summary = document.getElementById('trajectory-summary');
+        if (summary) {
+        const baseSummary = baseState === '000' ? '無人上壘' : baseState.split('').map((x,i)=>x==='1'?['一壘','二壘','三壘'][i]:'').filter(Boolean).join('、');
+        summary.textContent = `瞄準「${getZoneName(aimZoneId, isLeftBatter)}」→ 估算進壘「${getZoneName(estimatedZoneId, isLeftBatter)}」｜飛行時間約 ${flightTime.toFixed(2)} 秒｜賽況 ${balls} 壞球／${strikes} 好球、${outs} 出局、${baseSummary}｜示意估算，未經逐球校準。`;
+        }
+        }
+
+        // 模型參數只更新示意模型，不切換球種為 custom。
+        const modelParameterInputs = [
+        { id: 'hb-scale', suffix: '×', decimals: 2 },
+        { id: 'ivb-scale', suffix: '×', decimals: 2 },
+        { id: 'dispersion-sigma', suffix: '', decimals: 2 }
+        ];
+        modelParameterInputs.forEach(({ id, suffix, decimals }) => {
+        const input = document.getElementById(id);
+        const valueLabel = document.getElementById(id + '-val');
+        const syncModelParameter = () => {
+        valueLabel.textContent = Number(input.value).toFixed(decimals) + suffix;
+        updateHeatmap();
+        };
+        input.addEventListener('input', syncModelParameter);
+        input.addEventListener('change', syncModelParameter);
+        });
+
+        document.getElementById('reset-model-btn').addEventListener('click', () => {
+        document.getElementById('hb-scale').value = '1.00';
+        document.getElementById('ivb-scale').value = '1.00';
+        document.getElementById('dispersion-sigma').value = '0.85';
+        modelParameterInputs.forEach(({ id, suffix, decimals }) => {
+        document.getElementById(id + '-val').textContent =
+        Number(document.getElementById(id).value).toFixed(decimals) + suffix;
+        });
+        updateHeatmap();
+        });
+
+        document.getElementById('aim-zone').addEventListener('change', updateHeatmap);
+        document.getElementById('batter').addEventListener('change', function () {
+        updateAimZoneLabels();
+        updateHeatmap();
+        });
+        updateAimZoneLabels();
+
+        document.querySelectorAll('.filter-input').forEach(input => {
+        input.addEventListener('input', updateHeatmap);
+        input.addEventListener('change', updateHeatmap);
+        });
+
+        // 初始化數值顯示與預設球種模板。
+        document.querySelectorAll('input[type="range"]:not(.model-input)').forEach(updateSliderDisplay);
+        if (pitchTypeSelect.value !== 'custom') {
+        applyPitchTemplate(pitchTypeSelect.value);
+        } else {
+        updatePitchDataNote('custom');
+        updateHeatmap();
+        }
+
+        // 投球動畫：從熱區上方的視覺出手點，沿彎曲路徑抵達模型估算的進壘區。
+        // 這是把計算出的進壘區可視化，不代表已完成逐時刻的 3D 真實球路積分。
+        document.getElementById('simulate-btn').addEventListener('click', () => {
+        const ball = document.getElementById('baseball');
+        const wrapper = document.getElementById('heatmap-wrapper');
+        const targetZone = document.getElementById('zone-' + latestEstimatedZoneId);
+        if (!ball || !wrapper || !targetZone) return;
+
+        const wRect = wrapper.getBoundingClientRect();
+        const tRect = targetZone.getBoundingClientRect();
+        const startX = wRect.width * 0.50;
+        const startY = wRect.height * 0.04;
+        const targetX = (tRect.left - wRect.left) + (tRect.width / 2);
+        const targetY = (tRect.top - wRect.top) + (tRect.height / 2);
+        const v = Number(document.getElementById('velocity').value);
+        const duration = Math.max(650, Math.min(1300, 2200 - v * 8));
+        const startTime = performance.now();
+
+        // 用估算落點相對於熱區中心的方向，決定示意曲線的彎曲方向。
+        const curveX = (targetX - startX) * 0.22;
+        const curveY = Math.max(20, (targetY - startY) * 0.18);
+        ball.style.transition = 'none';
+        ball.style.opacity = '1';
+        ball.style.left = `${startX}px`;
+        ball.style.top = `${startY}px`;
+        ball.style.transform = 'translate(-50%, -50%) scale(1.7)';
+        ball.style.filter = 'drop-shadow(2px 4px 6px rgba(0,0,0,0.5))';
+
+        function animatePitch(now) {
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - t, 2);
+        // 二次 Bézier 曲線：只作軌跡視覺化，終點嚴格對應估算進壘區。
+        const controlX = (startX + targetX) / 2 + curveX;
+        const controlY = (startY + targetY) / 2 - curveY;
+        const oneMinus = 1 - eased;
+        const x = oneMinus * oneMinus * startX + 2 * oneMinus * eased * controlX + eased * eased * targetX;
+        const y = oneMinus * oneMinus * startY + 2 * oneMinus * eased * controlY + eased * eased * targetY;
+        const scale = 1.7 - eased * 0.9;
+        ball.style.left = `${x}px`;
+        ball.style.top = `${y}px`;
+        ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        if (t < 1) {
+        requestAnimationFrame(animatePitch);
+        } else {
+        ball.style.left = `${targetX}px`;
+        ball.style.top = `${targetY}px`;
+        setTimeout(() => { ball.style.opacity = '0'; }, 500);
+        }
+        }
+        requestAnimationFrame(animatePitch);
+        });
+
+        // 瀏覽器安全限制：全螢幕必須由使用者點擊觸發，不能在載入頁面時無條件強制開啟。
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        async function toggleFullscreen() {
+        try {
+        if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        } else {
+        await document.exitFullscreen();
+        }
+        } catch (error) {
+        const message = '瀏覽器未允許全螢幕，請再點一次按鈕或檢查瀏覽器設定。';
+        fullscreenBtn.textContent = '⛶ 重新進入全螢幕';
+        fullscreenBtn.title = message;
+        console.warn(message, error);
+        }
+        }
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        document.addEventListener('fullscreenchange', () => {
+        const isFullscreen = Boolean(document.fullscreenElement);
+        fullscreenBtn.textContent = isFullscreen ? '⤢ 離開全螢幕' : '⛶ 進入全螢幕';
+        fullscreenBtn.title = isFullscreen ? '離開全螢幕模式' : '進入全螢幕模式';
+        });
+    </script>
+</body>
+</html>
